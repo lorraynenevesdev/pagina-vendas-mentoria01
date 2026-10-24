@@ -184,6 +184,25 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; justify-content
 .offer .btn { background: var(--cream); color: var(--cta-ink); border-color: var(--cream); box-shadow: none; }
 .offer .btn:hover { background: var(--champagne); }
 .offer .btn:focus-visible { outline-color: var(--cream); }
+
+/* popup de cadastro */
+.modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal[hidden] { display: none !important; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(36, 16, 20, 0.62); }
+.modal-card { position: relative; width: 100%; max-width: 28rem; max-height: calc(100% - 8px); overflow-y: auto; background: var(--bg); color: var(--ink); padding: clamp(1.5rem, 5vw, 2.25rem); display: flex; flex-direction: column; gap: 1.1rem; border-top: 3px solid var(--wine); }
+.modal-card h2 { font-size: clamp(1.5rem, 5vw, 1.9rem); }
+.modal-x { position: absolute; top: 0.5rem; right: 0.6rem; width: 2.5rem; height: 2.5rem; background: transparent; border: 0; font-size: 1.8rem; line-height: 1; color: var(--soft); cursor: pointer; }
+.modal-x:focus-visible { outline: 2px solid var(--wine); }
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.field label { font-size: 0.82rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--soft); font-weight: 500; }
+.field input { font-family: var(--font-body); font-size: 1rem; color: var(--ink); background: #FBF4E8; border: 1px solid rgba(104, 28, 50, 0.35); border-radius: 2px; padding: 0.8rem 0.9rem; min-height: 3rem; width: 100%; }
+.field input:focus-visible { outline: 2px solid var(--wine); outline-offset: 1px; border-color: var(--wine); }
+#lead-form .stack { display: flex; flex-direction: column; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.form-msg { font-size: 0.92rem; min-height: 1.3em; color: var(--wine); }
+.form-msg.ok { color: var(--ink); }
+.consent { font-size: 0.8rem; color: var(--soft); }
+.btn[disabled] { opacity: 0.7; cursor: wait; transform: none; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
 </style>
 </head>
@@ -349,22 +368,96 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; justify-content
   <div class="wrap"><span>Mentoria Método Lorrayne · LIDME</span><span>LIDME Gestão e Tecnologia</span></div>
 </footer>
 
+<div class="modal" id="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button class="modal-x" type="button" data-close aria-label="Fechar">&times;</button>
+    <span class="eyebrow">Workshop Mentoria Método Lorrayne</span>
+    <h2 id="modal-title">Quase lá. Quem é você?</h2>
+    <form id="lead-form" novalidate>
+      <div class="stack" style="gap:1rem">
+        <div class="field"><label for="f-nome">Nome</label><input id="f-nome" name="nome" type="text" autocomplete="name" required></div>
+        <div class="field"><label for="f-whats">WhatsApp</label><input id="f-whats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(31) 90000-0000" required></div>
+        <div class="field"><label for="f-insta">Instagram</label><input id="f-insta" name="instagram" type="text" autocapitalize="none" autocorrect="off" placeholder="@seuperfil" required></div>
+        <div class="hp" aria-hidden="true"><label for="f-site">Site</label><input id="f-site" name="site" type="text" tabindex="-1" autocomplete="off"></div>
+        <button class="btn block" type="submit" id="f-submit">Continuar →</button>
+        <p class="form-msg" id="form-msg" role="alert"></p>
+        <p class="consent">Ao continuar, você autoriza o contato por WhatsApp e Instagram sobre o workshop.</p>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="dock"><a class="btn block js-cta" href="#oferta">Quero participar do workshop</a></div>
-<div class="toast" id="toast" role="status" hidden>Prévia: o link do checkout ainda não foi inserido.</div>
+
 
 <script>
-  // Substitua pelo link real do checkout antes de publicar.
+  // Substitua pelo link real do checkout antes de divulgar.
   var CHECKOUT_URL = "[inserir link]";
-  var ready = /^https?:\/\//.test(CHECKOUT_URL);
-  var toast = document.getElementById("toast");
-  var timer;
+  var WEBHOOK_URL = "https://mlorraynelidme.app.n8n.cloud/webhook/workshop-metodo-lorrayne";
+
+  var modal = document.getElementById("modal");
+  var form = document.getElementById("lead-form");
+  var msg = document.getElementById("form-msg");
+  var submitBtn = document.getElementById("f-submit");
+  var lastFocus = null;
+
+  function openModal() {
+    lastFocus = document.activeElement;
+    msg.textContent = ""; msg.className = "form-msg";
+    modal.hidden = false;
+    document.getElementById("f-nome").focus();
+  }
+  function closeModal() {
+    modal.hidden = true;
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
   document.querySelectorAll(".js-cta").forEach(function (a) {
-    if (ready) { a.href = CHECKOUT_URL; a.target = "_blank"; a.rel = "noopener"; return; }
-    a.addEventListener("click", function (e) {
-      e.preventDefault();
-      toast.hidden = false;
+    a.addEventListener("click", function (e) { e.preventDefault(); openModal(); });
+  });
+  modal.querySelectorAll("[data-close]").forEach(function (el) { el.addEventListener("click", closeModal); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !modal.hidden) closeModal(); });
+
+  function show(text, ok) { msg.textContent = text; msg.className = "form-msg" + (ok ? " ok" : ""); }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var nome = form.nome.value.trim();
+    var whats = form.whatsapp.value.trim();
+    var insta = form.instagram.value.trim();
+    if (!nome) { show("Informe o seu nome.", false); form.nome.focus(); return; }
+    if (whats.replace(/\D/g, "").length < 10) { show("Informe um WhatsApp com DDD.", false); form.whatsapp.focus(); return; }
+    if (insta.replace("@", "").length < 2) { show("Informe o seu Instagram.", false); form.instagram.focus(); return; }
+
+    submitBtn.disabled = true;
+    var original = submitBtn.textContent;
+    submitBtn.textContent = "Enviando...";
+    show("", false);
+
+    function done() {
+      var hasCheckout = /^https?:\/\//.test(CHECKOUT_URL);
+      if (hasCheckout) { window.location.href = CHECKOUT_URL; return; }
+      show("Cadastro recebido.", true);
+      submitBtn.disabled = false; submitBtn.textContent = original;
+    }
+
+    if (form.site.value) { done(); return; } // campo-armadilha para robos
+
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 8000);
+    fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome: nome, whatsapp: whats, instagram: insta, pagina: location.href }),
+      signal: ctrl.signal
+    }).then(function (r) {
       clearTimeout(timer);
-      timer = setTimeout(function () { toast.hidden = true; }, 3200);
+      if (!r.ok) throw new Error("status " + r.status);
+      done();
+    }).catch(function () {
+      clearTimeout(timer);
+      show("Não foi possível enviar agora. Tente de novo em instantes.", false);
+      submitBtn.disabled = false; submitBtn.textContent = original;
     });
   });
 </script>
